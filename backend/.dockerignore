@@ -1,0 +1,4 @@
+# 构建上下文瘦身：target/ 是本地 Windows 上打出来的 jar（29MB），容器里会自己重新打包，不需要传进去
+target/
+*.log
+.idea/

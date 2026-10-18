@@ -1,0 +1,22 @@
+# 本地凭据与密钥：绝不入库
+.ssh/
+.env
+.env.local
+application-local.yml
+
+# 上传图：生产存在文件服务器上，本地目录只是历史备份/离线回退，不入库
+petmall/upload/
+
+# 依赖与构建产物：本地生成，不入库
+node_modules/
+backend/target/
+backend/src/main/resources/storage/
+.idea/
+.graphflow/
+graphflow-out/
+
+# Windows 系统文件
+desktop.ini
+
+# WorkBuddy 工具记忆目录：含本地工作笔记，不入库
+.workbuddy/

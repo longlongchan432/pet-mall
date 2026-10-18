@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petmall.mapper.PaymentMapper">
+    <resultMap id="BaseResultMap" type="com.petmall.entity.Payment">
+        <id column="id" property="id"/>
+        <result column="payment_no" property="paymentNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="amount" property="amount"/>
+        <result column="payment_method" property="paymentMethod"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="pay_time" property="payTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE id = #{id}
+    </select>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE order_id = #{orderId} ORDER BY create_time DESC LIMIT 1
+    </select>
+
+    <select id="selectByPaymentNo" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE payment_no = #{paymentNo}
+    </select>
+
+    <insert id="insert" parameterType="com.petmall.entity.Payment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO payment (payment_no, order_id, order_no, amount, payment_method, status, create_time, pay_time)
+        VALUES (#{paymentNo}, #{orderId}, #{orderNo}, #{amount}, #{paymentMethod}, #{status}, #{createTime}, #{payTime})
+    </insert>
+
+    <update id="update" parameterType="com.petmall.entity.Payment">
+        UPDATE payment
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="payTime != null">pay_time = #{payTime}</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+</mapper>
+
+
+

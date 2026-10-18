@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petmall.mapper.OrderMapper">
+    <resultMap id="BaseResultMap" type="com.petmall.entity.Order">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="merchant_name" property="merchantName"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="status" property="status"/>
+        <result column="address" property="address"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="logistics_no" property="logisticsNo"/>
+        <result column="logistics_company" property="logisticsCompany"/>
+        <result column="create_time" property="createTime"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="ship_time" property="shipTime"/>
+        <result column="receive_time" property="receiveTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT o.*, u.username as user_name, m.username as merchant_name
+        FROM `order` o
+        LEFT JOIN user u ON o.user_id = u.id
+        LEFT JOIN user m ON o.merchant_id = m.id
+        WHERE o.id = #{id}
+    </select>
+
+    <select id="selectByOrderNo" resultMap="BaseResultMap">
+        SELECT o.*, u.username as user_name, m.username as merchant_name
+        FROM `order` o
+        LEFT JOIN user u ON o.user_id = u.id
+        LEFT JOIN user m ON o.merchant_id = m.id
+        WHERE o.order_no = #{orderNo}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT o.*, u.username as user_name, m.username as merchant_name
+        FROM `order` o
+        LEFT JOIN user u ON o.user_id = u.id
+        LEFT JOIN user m ON o.merchant_id = m.id
+        WHERE o.user_id = #{userId}
+        ORDER BY o.create_time DESC
+    </select>
+
+    <select id="selectByMerchantId" resultMap="BaseResultMap">
+        SELECT o.*, u.username as user_name, m.username as merchant_name
+        FROM `order` o
+        LEFT JOIN user u ON o.user_id = u.id
+        LEFT JOIN user m ON o.merchant_id = m.id
+        WHERE o.merchant_id = #{merchantId}
+        ORDER BY o.create_time DESC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT o.*, u.username as user_name, m.username as merchant_name
+        FROM `order` o
+        LEFT JOIN user u ON o.user_id = u.id
+        LEFT JOIN user m ON o.merchant_id = m.id
+        <where>
+            <if test="status != null">
+                AND o.status = #{status}
+            </if>
+        </where>
+        ORDER BY o.create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.petmall.entity.Order" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `order` (order_no, user_id, merchant_id, total_amount, status, address, receiver_name, receiver_phone, create_time)
+        VALUES (#{orderNo}, #{userId}, #{merchantId}, #{totalAmount}, #{status}, #{address}, #{receiverName}, #{receiverPhone}, #{createTime})
+    </insert>
+
+    <update id="update" parameterType="com.petmall.entity.Order">
+        UPDATE `order`
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="address != null">address = #{address},</if>
+            <if test="receiverName != null">receiver_name = #{receiverName},</if>
+            <if test="receiverPhone != null">receiver_phone = #{receiverPhone},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="shipTime != null">ship_time = #{shipTime},</if>
+            <if test="receiveTime != null">receive_time = #{receiveTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime}</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE `order` SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <update id="updateLogistics">
+        UPDATE `order` SET logistics_no = #{logisticsNo}, logistics_company = #{logisticsCompany}, ship_time = NOW(), status = 2, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="countOrders" resultType="long">
+        SELECT COUNT(*) FROM `order`
+        <where>
+            <if test="merchantId != null">
+                AND merchant_id = #{merchantId}
+            </if>
+        </where>
+    </select>
+
+    <select id="sumSales" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(total_amount), 0) FROM `order`
+        <where>
+            <if test="merchantId != null">
+                AND merchant_id = #{merchantId}
+            </if>
+            AND status IN (1, 2, 3)
+        </where>
+    </select>
+
+    <select id="dailySales" resultType="java.util.HashMap">
+        SELECT DATE(pay_time) AS d, COUNT(*) AS cnt, IFNULL(SUM(total_amount), 0) AS amt
+        FROM `order`
+        WHERE merchant_id = #{merchantId}
+          AND status IN (1, 2, 3)
+          AND pay_time IS NOT NULL
+          AND pay_time &gt;= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(pay_time)
+        ORDER BY d
+    </select>
+
+    <!-- 条件更新：返回 0 表示状态已被支付/取消/超时任务改掉，调用方据此回滚 -->
+    <update id="payIfUnpaid">
+        UPDATE `order` SET status = 1, pay_time = #{payTime}, update_time = NOW()
+        WHERE id = #{id} AND status = 0
+    </update>
+
+    <update id="cancelIfUnpaid">
+        UPDATE `order` SET status = 4, update_time = NOW()
+        WHERE id = #{id} AND status = 0
+    </update>
+
+    <update id="cancelIfNotFinished">
+        UPDATE `order` SET status = 4, update_time = NOW()
+        WHERE id = #{id} AND status &lt; 3
+    </update>
+
+    <select id="selectExpiredUnpaidIds" resultType="long">
+        SELECT id FROM `order` WHERE status = 0 AND create_time &lt; #{deadline}
+    </select>
+</mapper>
+

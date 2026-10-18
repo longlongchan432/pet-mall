@@ -1,0 +1,72 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: pet-travel-station
+  servlet:
+    multipart:
+      # 不配就走 Spring 默认单文件 1MB，而前端提示"不超过2MB"：1~2MB 的图会被直接拒掉
+      max-file-size: 5MB
+      max-request-size: 10MB
+      # 懒解析：超限时把异常抛在 Controller 里，才能被 @ExceptionHandler 接住返回友好提示；
+      # 不懒解析的话 Tomcat 在进 Controller 之前就抛，异常转发到 /error，被登录拦截器拦成 401
+      resolve-lazily: true
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/pet_mall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_ROOT_PASSWORD:your_mysql_password}   # 真实密码只从环境变量注入，不入库（部署见 docker-compose/.env）
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.petmall.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:pleaseChangeThisJwtSecretBeforeDeploy}   # 务必改为随机强密钥，切勿使用默认值（否则可伪造登录令牌）
+  expiration: 86400000 # 24小时
+
+# 订单配置
+order:
+  pay:
+    timeout-minutes: 30 # 待支付订单超时自动取消并回补库存（每 60s 扫描一次）
+
+# 文件上传配置
+file:
+  storage:
+    # sftp = 写 Ubuntu 文件服务器（图片由那边 nginx 直出）；local = 写本机磁盘（无虚拟机的离线回退）
+    type: ${FILE_STORAGE_TYPE:sftp}
+  upload:
+    # 只有 local 模式读它；WebConfig 启动时转成绝对 file: URI，避免相对路径解析不一致
+    path: ../petmall/upload/
+  sftp:
+    host: ${FILE_SFTP_HOST:localhost}
+    port: ${FILE_SFTP_PORT:22}
+    username: ${FILE_SFTP_USER:petmall}
+    # 二选一：密钥优先，密码留作回退。都不写进仓库，只从环境变量注入
+    private-key: ${FILE_SFTP_KEY:}
+    password: ${FILE_SFTP_PASSWORD:}
+    remote-dir: ${FILE_SFTP_DIR:/srv/petmall/upload}
+    # 留空 = 不校验主机指纹（仅开发，启动日志会 WARN）；生产用 ssh-keyscan 生成后填这里
+    known-hosts: ${FILE_SFTP_KNOWN_HOSTS:}
+
+
+

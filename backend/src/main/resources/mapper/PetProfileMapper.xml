@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petmall.mapper.PetProfileMapper">
+    <resultMap id="BaseResultMap" type="com.petmall.entity.PetProfile">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="pet_type" property="petType"/>
+        <result column="breed" property="breed"/>
+        <result column="age_months" property="ageMonths"/>
+        <result column="weight_kg" property="weightKg"/>
+        <result column="notes" property="notes"/>
+        <result column="is_primary" property="isPrimary"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM pet_profile WHERE user_id = #{userId} ORDER BY is_primary DESC, create_time DESC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM pet_profile WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.petmall.entity.PetProfile" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO pet_profile (user_id, pet_type, breed, age_months, weight_kg, notes, is_primary, create_time, update_time)
+        VALUES (#{userId}, #{petType}, #{breed}, #{ageMonths}, #{weightKg}, #{notes}, #{isPrimary}, #{createTime}, #{updateTime})
+    </insert>
+
+    <update id="update" parameterType="com.petmall.entity.PetProfile">
+        UPDATE pet_profile
+        <set>
+            <if test="petType != null">pet_type = #{petType},</if>
+            <if test="breed != null">breed = #{breed},</if>
+            <if test="ageMonths != null">age_months = #{ageMonths},</if>
+            <if test="weightKg != null">weight_kg = #{weightKg},</if>
+            <if test="notes != null">notes = #{notes},</if>
+            <if test="isPrimary != null">is_primary = #{isPrimary},</if>
+            update_time = #{updateTime}
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM pet_profile WHERE id = #{id}
+    </delete>
+</mapper>

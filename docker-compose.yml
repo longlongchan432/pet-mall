@@ -1,0 +1,107 @@
+# 宠旅驿站（pet-mall）四端单机容器编排：MySQL + 后端 + AI 导购 + 商城端 + 后台端
+#
+# 用法（在 Ubuntu 虚拟机上，项目所在目录执行）：
+#   cp .env.example .env && vi .env      # 填 DEEPSEEK_API_KEY
+#   docker compose up -d --build
+#   docker compose ps
+#   docker compose logs -f petmall-backend
+# 注意虚拟机上是 Compose 插件，命令是 `docker compose`（不是 docker-compose）
+name: petmall
+
+services:
+  # ── MySQL 8 ─────────────────────────────────────────────────────────────
+  petmall-mysql:
+    image: mysql:8                 # 虚拟机上已有这个镜像，不会再拉
+    container_name: petmall-mysql  # 不能叫 mysql：虚拟机里已有一个退出的同名学生容器
+    restart: unless-stopped
+    command:
+      # 虚拟机系统时区是 UTC，而 JDBC 连接串里写死了 serverTimezone=Asia/Shanghai；
+      # 两边不一致会让所有时间字段差 8 小时，这里把 MySQL 的时区钉成 +08:00
+      - --default-time-zone=+08:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:your_mysql_password}   # 与 backend application.yml 对齐；部署前在 .env 里设真实值
+      MYSQL_DATABASE: pet_mall        # 项目自带的 sql/petmall.sql 里没有 CREATE DATABASE，靠这个建库
+    volumes:
+      - petmall-mysql-data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro   # 只在「数据卷为空」的第一次启动时执行这里的 .sql
+    healthcheck:
+      # 后端必须等 MySQL 真能连上再启动，否则 Druid 初始化失败会让容器反复重启
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:your_mysql_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    # ports:
+    #   - "3306:3306"     # 想用 Windows 上的 Navicat 直连调试再打开
+
+  # ── 后端 API（Spring Boot 2.7.18 / JDK8，context-path=/api）─────────────
+  petmall-backend:
+    build: ./backend
+    container_name: petmall-backend
+    restart: unless-stopped
+    depends_on:
+      petmall-mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      # 同机共享目录：后端把图直接写进宿主 /srv/petmall/upload（下面 bind mount 进来），
+      # 不再走 SFTP —— 同一台机器上还 SSH 连自己是多余的一跳。跨机部署见教程 §9。
+      # FILE_UPLOAD_PATH 覆盖 application.yml 的 file.upload.path（Spring 宽松绑定，已实测）
+      FILE_STORAGE_TYPE: local
+      FILE_UPLOAD_PATH: /srv/petmall/upload/
+      # 容器里的 localhost 是容器自己，数据库必须用 compose 服务名
+      SPRING_DATASOURCE_URL: jdbc:mysql://petmall-mysql:3306/pet_mall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    volumes:
+      - /srv/petmall/upload:/srv/petmall/upload
+    ports:
+      - "8080:8080"
+
+  # ── AI 导购（FastAPI + SSE）─────────────────────────────────────────────
+  petmall-ai:
+    build: ./ai-service
+    container_name: petmall-ai
+    restart: unless-stopped
+    depends_on:
+      - petmall-backend
+    environment:
+      TZ: Asia/Shanghai
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?请在项目根目录 .env 里填 DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      # 容器里的「本机后端」是 petmall-backend 这个服务名
+      MALL_API_BASE: http://petmall-backend:8080/api
+    volumes:
+      - petmall-ai-data:/app/data   # 会话记忆 memory.json；删卷就清空（本来也是临时数据）
+    ports:
+      - "8082:8082"
+
+  # ── 商城端（Vue2 构建 → nginx 托管，自带 /api、/ai、/upload）────────────
+  petmall-web:
+    build: ./frontend
+    container_name: petmall-web
+    restart: unless-stopped
+    depends_on:
+      - petmall-backend
+      - petmall-ai
+    volumes:
+      - /srv/petmall/upload:/srv/petmall/upload:ro   # 只读挂进来自己发图，后端不背图片带宽
+    ports:
+      - "8081:80"
+
+  # ── 后台端（Vue2 构建 → nginx 托管，自带 /api、/upload）─────────────────
+  petmall-admin:
+    build: ./admin
+    container_name: petmall-admin
+    restart: unless-stopped
+    depends_on:
+      - petmall-backend
+    volumes:
+      - /srv/petmall/upload:/srv/petmall/upload:ro
+    ports:
+      - "8083:80"
+
+volumes:
+  petmall-mysql-data:
+  petmall-ai-data:

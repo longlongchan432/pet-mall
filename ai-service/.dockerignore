@@ -1,0 +1,6 @@
+# .env 里有 DEEPSEEK_API_KEY，绝不能进镜像（密钥只在运行时由 compose 注入）
+.env
+__pycache__/
+*.pyc
+# 会话记忆是运行时数据，由 docker-compose 的卷提供
+data/

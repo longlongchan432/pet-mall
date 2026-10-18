@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petmall.mapper.RechargeRecordMapper">
+    <resultMap id="BaseResultMap" type="com.petmall.entity.RechargeRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="recharge_no" property="rechargeNo"/>
+        <result column="amount" property="amount"/>
+        <result column="payment_method" property="paymentMethod"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.petmall.entity.RechargeRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO recharge_record (user_id, recharge_no, amount, payment_method, status, create_time)
+        VALUES (#{userId}, #{rechargeNo}, #{amount}, #{paymentMethod}, #{status}, #{createTime})
+    </insert>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM recharge_record WHERE user_id = #{userId} ORDER BY create_time DESC
+    </select>
+    <!-- 新增：管理员分页查询充值记录 -->
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT * FROM recharge_record
+        WHERE 1=1
+        <if test="userId != null">AND user_id = #{userId}</if>
+        <if test="status != null">AND status = #{status}</if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 新增：查询充值记录总数 -->
+    <select id="count" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM recharge_record
+        WHERE 1=1
+        <if test="userId != null">AND user_id = #{userId}</if>
+        <if test="status != null">AND status = #{status}</if>
+    </select>
+
+    <!-- 新增：根据ID查询单条记录 -->
+    <select id="selectById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM recharge_record WHERE id = #{id}
+    </select>
+
+    <!-- 新增：更新审核状态 -->
+    <update id="updateAuditStatus">
+        UPDATE recharge_record
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+</mapper>

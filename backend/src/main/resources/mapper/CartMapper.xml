@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petmall.mapper.CartMapper">
+    <resultMap id="BaseResultMap" type="com.petmall.entity.Cart">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="product_id" property="productId"/>
+        <result column="product_name" property="productName"/>
+        <result column="product_image" property="productImage"/>
+        <result column="price" property="price"/>
+        <result column="quantity" property="quantity"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="merchant_name" property="merchantName"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM cart WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserIdAndProductId" resultMap="BaseResultMap">
+        SELECT * FROM cart WHERE user_id = #{userId} AND product_id = #{productId}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT c.*, p.merchant_id, u.username as merchant_name
+        FROM cart c
+        LEFT JOIN product p ON c.product_id = p.id
+        LEFT JOIN user u ON p.merchant_id = u.id
+        WHERE c.user_id = #{userId}
+        ORDER BY c.create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.petmall.entity.Cart" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO cart (user_id, product_id, product_name, product_image, price, quantity, merchant_id, merchant_name, create_time)
+        VALUES (#{userId}, #{productId}, #{productName}, #{productImage}, #{price}, #{quantity}, #{merchantId}, #{merchantName}, #{createTime})
+    </insert>
+
+    <update id="update" parameterType="com.petmall.entity.Cart">
+        UPDATE cart
+        <set>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="updateTime != null">update_time = #{updateTime}</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM cart WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByUserId">
+        DELETE FROM cart WHERE user_id = #{userId}
+    </delete>
+</mapper>
+

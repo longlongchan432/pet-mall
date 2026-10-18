@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petmall.mapper.ProductMapper">
+    <resultMap id="BaseResultMap" type="com.petmall.entity.Product">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="stock" property="stock"/>
+        <result column="image" property="image"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="merchant_name" property="merchantName"/>
+        <result column="status" property="status"/>
+        <result column="sales" property="sales"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT p.*, c.name as category_name, u.username as merchant_name
+        FROM product p
+        LEFT JOIN category c ON p.category_id = c.id
+        LEFT JOIN user u ON p.merchant_id = u.id
+        WHERE p.id = #{id}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT p.*, c.name as category_name, u.username as merchant_name
+        FROM product p
+        LEFT JOIN category c ON p.category_id = c.id
+        LEFT JOIN user u ON p.merchant_id = u.id
+        <where>
+            <if test="name != null and name != ''">
+                AND p.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="categoryId != null">
+                AND p.category_id = #{categoryId}
+            </if>
+            <if test="merchantId != null">
+                AND p.merchant_id = #{merchantId}
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+        </where>
+        ORDER BY p.create_time DESC
+    </select>
+
+    <select id="selectByKeyword" resultMap="BaseResultMap">
+        SELECT p.*, c.name as category_name, u.username as merchant_name
+        FROM product p
+        LEFT JOIN category c ON p.category_id = c.id
+        LEFT JOIN user u ON p.merchant_id = u.id
+        WHERE p.status = 1
+          AND (
+            p.name LIKE CONCAT('%', #{keyword}, '%')
+            OR p.description LIKE CONCAT('%', #{keyword}, '%')
+            OR c.name LIKE CONCAT('%', #{keyword}, '%')
+          )
+        ORDER BY p.create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.petmall.entity.Product" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product (name, description, price, stock, image, category_id, merchant_id, status, sales, create_time)
+        VALUES (#{name}, #{description}, #{price}, #{stock}, #{image}, #{categoryId}, #{merchantId}, #{status}, #{sales}, #{createTime})
+    </insert>
+
+    <update id="update" parameterType="com.petmall.entity.Product">
+        UPDATE product
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="sales != null">sales = #{sales},</if>
+            <if test="image != null">image = #{image},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="updateTime != null">update_time = #{updateTime}</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 条件更新：quantity 为负（扣库存）时只有 stock 够扣才会命中，返回 0 即库存不足 -->
+    <update id="updateStock">
+        UPDATE product SET stock = stock + #{quantity} WHERE id = #{id} AND stock + #{quantity} &gt;= 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE product SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM product WHERE id = #{id}
+    </delete>
+
+    <select id="countProducts" resultType="long">
+        SELECT COUNT(*) FROM product
+        <where>
+            <if test="merchantId != null">
+                AND merchant_id = #{merchantId}
+            </if>
+        </where>
+    </select>
+
+    <select id="topProducts" resultMap="BaseResultMap">
+        SELECT p.*, c.name as category_name, u.username as merchant_name
+        FROM product p
+        LEFT JOIN category c ON p.category_id = c.id
+        LEFT JOIN user u ON p.merchant_id = u.id
+        WHERE p.merchant_id = #{merchantId} AND p.status = 1
+        ORDER BY p.sales DESC, p.id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>
+

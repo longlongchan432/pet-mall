@@ -1,0 +1,4 @@
+# 这两个必须滤掉：Windows 上装出来的 node_modules 有几百 MB 且平台相关，传进 Linux 容器只会污染构建
+node_modules/
+dist/
+npm-debug.log*
